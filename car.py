@@ -92,6 +92,8 @@ agent = QLearn(
     alpha=ALPHA,
     gamma=GAMMA
 )
+import json
+agent.load_q(json.load(open("./agent_q.agent")))
 
 max_reading = 0
 
