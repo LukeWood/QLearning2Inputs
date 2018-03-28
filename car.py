@@ -4,15 +4,12 @@ import random
 
 """QLEARN CLASS NOT MY CODe"""
 class QLearn:
-    def __init__(self, actions, epsilon, alpha, gamma):
-        self.q = {}
+    def __init__(self, actions, epsilon, alpha, gamma, q={}):
+        self.q = q
         self.epsilon = epsilon  # exploration constant
         self.alpha = alpha      # discount constant
         self.gamma = gamma      # discount factor
         self.actions = actions
-
-    def load_q(self, new_q):
-        self.q = new_q
 
     def getQ(self, state, action):
         return self.q.get(str(state)+ str(action), 0.0)
@@ -56,9 +53,9 @@ class QLearn:
         maxqnew = max([self.getQ(state2, a) for a in self.actions])
         self.learnQ(state1, action1, reward, reward + self.gamma*maxqnew)
 
-EPSILON=.5
-ALPHA=.4
-GAMMA=1
+EPSILON=.05
+ALPHA=.9
+GAMMA=.2
 
 env = gym.make("BinaryCarRacing-v0")
 env.reset()
@@ -72,6 +69,7 @@ individual_actions = [
     "brake_on",
     "brake_off"
 ]
+
 import itertools
 for r in [1, 2, 3]:
     for comb in itertools.combinations(individual_actions, r=r):
@@ -91,24 +89,23 @@ action_effects = {
     "brake_off":      lambda x: assign_val(x, 2, 0)
 }
 
+import json as jason
 agent = QLearn(
     actions=action_list,
     epsilon=EPSILON,
     alpha=ALPHA,
-    gamma=GAMMA
+    gamma=GAMMA,
+    q=jason.load(open("./agent_q.agent"))
 )
-import json
-agent.load_q(json.load(open("./agent_q.agent")))
 
-max_reading = 0
-
+MAX_READING = 10
 import math
 def convert_to_discrete(reading, max_reading):
     if reading == 0 or reading == -1:
         return -1
     return math.floor(reading/max_reading * 5)
 
-for iteration in range(100):
+for iteration in range(500):
     action = np.array([0, 0, 0])
     action_chosen = None
     state = None
@@ -116,10 +113,13 @@ for iteration in range(100):
     done = False
     while not done:
         new_state, step_reward, done, _ = env.step(action)
-        for reading in new_state:
-            if reading > max_reading:
-                max_reading = reading
-        new_state = list(map(lambda x: convert_to_discrete(x, max_reading), new_state))
+        new_state = list(map(lambda x: convert_to_discrete(x, MAX_READING), new_state))
+        non_negative = False
+        for s in new_state:
+            if s != -1:
+                non_negative = True
+        if not non_negative:
+            done = True
         if state:
             agent.learn(state, action_chosen, step_reward, new_state)
         action_chosen = agent.chooseAction(new_state)
@@ -127,10 +127,10 @@ for iteration in range(100):
         for act in action_chosen:
             action = action_effects[act](action)
         state = new_state
-        if iteration % 10 == 0:
+        if iteration % 50 == 0:
             env.render()
     env.reset()
-
-import json
-with open("./agent_q.agent", "w+") as f:
-    f.write(json.dumps(agent.q))
+    if iteration % 10 == 0:
+        with open("./agent_q.agent", "w+") as f:
+            f.write(jason.dumps(agent.q))
+        print("agent_q.agent written")
