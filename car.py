@@ -15,18 +15,18 @@ class QLearn:
         self.q = new_q
 
     def getQ(self, state, action):
-        return self.q.get(str(state)+ action, 0.0)
+        return self.q.get(str(state)+ str(action), 0.0)
 
     def learnQ(self, state, action, reward, value):
         '''
         Q-learning:
             Q(s, a) += alpha * (reward(s,a) + max(Q(s') - Q(s,a))
         '''
-        oldv = self.q.get(str(state) + action, None)
+        oldv = self.q.get(str(state) + str(action), None)
         if oldv is None:
-            self.q[str(state)+ action] = reward
+            self.q[str(state)+ str(action)] = reward
         else:
-            self.q[str(state)+ action] = oldv + self.alpha * (value - oldv)
+            self.q[str(state)+ str(action)] = oldv + self.alpha * (value - oldv)
 
     def chooseAction(self, state, return_q=False):
         q = [self.getQ(state, a) for a in self.actions]
@@ -63,7 +63,8 @@ GAMMA=1
 env = gym.make("BinaryCarRacing-v0")
 env.reset()
 
-action_list = [
+action_list = []
+individual_actions = [
     "steer_left",
     "steer_right",
     "gas_on",
@@ -71,6 +72,10 @@ action_list = [
     "brake_on",
     "brake_off"
 ]
+import itertools
+for r in [1, 2, 3]:
+    for comb in itertools.combinations(individual_actions, r=r):
+        action_list.append(comb)
 
 def assign_val(x, index, val):
     x[index] = val
@@ -118,7 +123,9 @@ for iteration in range(100):
         if state:
             agent.learn(state, action_chosen, step_reward, new_state)
         action_chosen = agent.chooseAction(new_state)
-        action = action_effects[action_chosen](action)
+
+        for act in action_chosen:
+            action = action_effects[act](action)
         state = new_state
         if iteration % 10 == 0:
             env.render()
